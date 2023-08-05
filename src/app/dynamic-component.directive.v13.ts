@@ -13,16 +13,17 @@ import {
   ViewContainerRef,
   reflectComponentType,
 } from '@angular/core';
-import { Subject, takeUntil } from 'rxjs';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 
 type UserOutputs = Record<string, (event: any) => void>;
 type UserInputs = Record<string, any>;
 type ComponentInputs = ComponentMirror<any>['inputs'];
 type ComponentOutputs = ComponentMirror<any>['outputs'];
 @Directive({
-  selector: '[dynamic-component]',
+  selector: '[dynamic-component-v14]',
 })
-export class DynamicComponentDirective implements OnDestroy, OnChanges {
+export class DynamicComponentV14Directive implements OnDestroy, OnChanges {
   private subscription = new Subject<null>();
   private componentMirror?: ComponentMirror<any> | null;
   private componentRef?: ComponentRef<any>;

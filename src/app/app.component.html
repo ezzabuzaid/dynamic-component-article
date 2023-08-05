@@ -1,4 +1,7 @@
-<ng-template [dynamic-component]="component" [inputs]="{backgroundColor: backgroundColor}"
-  [outputs]="{backgroundColorChanges: onColorChange.bind(this)}"></ng-template>
+<ng-template
+  [dynamic-component-v14]="component"
+  [inputs]="{ backgroundColor: backgroundColor }"
+  [outputs]="{ backgroundColorChanges: onColorChange.bind(this) }"
+></ng-template>
 
 <button (click)="changeColor()">Change Color</button>

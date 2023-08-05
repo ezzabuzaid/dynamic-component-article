@@ -1,4 +1,18 @@
-import { ComponentFactory, ComponentFactoryResolver, ComponentRef, Directive, EventEmitter, Injector, Input, OnChanges, OnDestroy, SimpleChange, SimpleChanges, Type, ViewContainerRef } from '@angular/core';
+import {
+  ComponentFactory,
+  ComponentFactoryResolver,
+  ComponentRef,
+  Directive,
+  EventEmitter,
+  Injector,
+  Input,
+  OnChanges,
+  OnDestroy,
+  SimpleChange,
+  SimpleChanges,
+  Type,
+  ViewContainerRef,
+} from '@angular/core';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 
@@ -7,139 +21,185 @@ type UserInputs = Record<string, any>;
 type ComponentInputs = ComponentFactory<any>['inputs'];
 type ComponentOutputs = ComponentFactory<any>['outputs'];
 @Directive({
-    selector: '[dynamic-component]',
+  selector: '[dynamic-component]',
 })
 export class DynamicComponentDirective implements OnDestroy, OnChanges {
-    private subscription = new Subject();
-    private componentFactory?: ComponentFactory<any>;
-    private componentRef?: ComponentRef<any>;
-    @Input('dynamic-component') component!: Type<any>;
-    @Input() outputs?: UserOutputs = {};
-    @Input() inputs?: UserInputs = {};
-    @Input() injector?: Injector;
+  private subscription = new Subject();
+  private componentFactory?: ComponentFactory<any>;
+  private componentRef?: ComponentRef<any>;
+  @Input('dynamic-component') component!: Type<any>;
+  @Input() outputs?: UserOutputs = {};
+  @Input() inputs?: UserInputs = {};
+  @Input() injector?: Injector;
 
-    constructor(
-        private viewContainerRef: ViewContainerRef,
-        private componentFactoryResolver: ComponentFactoryResolver,
-    ) { }
+  constructor(
+    private viewContainerRef: ViewContainerRef,
+    private componentFactoryResolver: ComponentFactoryResolver
+  ) {}
 
-    ngOnChanges(changes: SimpleChanges): void {
+  ngOnChanges(changes: SimpleChanges): void {
+    assertNotNullOrUndefined(this.component);
 
-        assertNotNullOrUndefined(this.component);
+    let componentChanges: Record<string, SimpleChange>;
+    const shouldCreateNewComponent =
+      changes.component?.previousValue !== changes.component?.currentValue ||
+      changes.injector?.previousValue !== changes.injector?.currentValue;
 
-        let componentChanges: Record<string, SimpleChange>;
-        const shouldCreateNewComponent =
-            changes.component?.previousValue !== changes.component?.currentValue
-            ||
-            changes.injector?.previousValue !== changes.injector?.currentValue;
-
-        if (shouldCreateNewComponent) {
-            this.destroyComponent();
-            this.createComponent();
-            componentChanges = this.makeComponentChanges(changes.inputs, true);
-        }
-        componentChanges ??= this.makeComponentChanges(changes.inputs, false);
-
-        assertNotNullOrUndefined(this.componentFactory);
-        assertNotNullOrUndefined(this.componentRef);
-
-        this.validateOutputs(this.componentFactory.outputs, this.outputs ?? {}, this.componentRef.instance);
-        this.validateInputs(this.componentFactory.inputs, this.inputs ?? {});
-        if (changes.inputs) {
-            this.bindInputs(this.componentFactory.inputs, this.inputs ?? {}, this.componentRef.instance);
-        }
-        if (changes.outputs) {
-            this.subscription.next(); // to remove old subscription
-            this.bindOutputs(this.componentFactory.outputs, this.outputs ?? {}, this.componentRef.instance);
-        }
-        if ((this.componentRef.instance as OnChanges).ngOnChanges) {
-            this.componentRef.instance.ngOnChanges(componentChanges);
-        }
+    if (shouldCreateNewComponent) {
+      this.destroyComponent();
+      this.createComponent();
+      componentChanges = this.makeComponentChanges(changes.inputs, true);
     }
+    componentChanges ??= this.makeComponentChanges(changes.inputs, false);
 
+    assertNotNullOrUndefined(this.componentFactory);
+    assertNotNullOrUndefined(this.componentRef);
 
-    ngOnDestroy(): void {
-        this.destroyComponent();
-        this.subscription.next();
-        this.subscription.complete();
+    this.validateOutputs(
+      this.componentFactory.outputs,
+      this.outputs ?? {},
+      this.componentRef.instance
+    );
+    this.validateInputs(this.componentFactory.inputs, this.inputs ?? {});
+    if (changes.inputs) {
+      this.bindInputs(
+        this.componentFactory.inputs,
+        this.inputs ?? {},
+        this.componentRef.instance
+      );
     }
-
-    private makeComponentChanges(inputsChange: SimpleChange, firstChange: boolean): Record<string, SimpleChange> {
-        const previuosInputs = inputsChange?.previousValue ?? {};
-        const currentInputs = inputsChange?.currentValue ?? {};
-        return Object.keys(currentInputs).reduce((acc, inputName) => {
-            const currentInputValue = currentInputs[inputName];
-            const previuosInputValue = previuosInputs[inputName];
-            if (currentInputValue !== previuosInputValue) {
-                acc[inputName] = new SimpleChange(firstChange ? undefined : previuosInputValue, currentInputValue, firstChange);
-            }
-            return acc;
-        }, {} as Record<string, SimpleChange>);
+    if (changes.outputs) {
+      this.subscription.next(); // to remove old subscription
+      this.bindOutputs(
+        this.componentFactory.outputs,
+        this.outputs ?? {},
+        this.componentRef.instance
+      );
     }
-
-    private createComponent() {
-        this.componentFactory = this.componentFactoryResolver.resolveComponentFactory(this.component);
-        this.componentRef = this.viewContainerRef.createComponent<any>(this.componentFactory, 0, this.injector);
+    if ((this.componentRef.instance as OnChanges).ngOnChanges) {
+      this.componentRef.instance.ngOnChanges(componentChanges);
     }
+  }
 
-    private bindOutputs(componentOutputs: ComponentInputs, userOutputs: UserInputs, componentInstance: any) {
-        componentOutputs.forEach((output) => {
-            (componentInstance[output.propName] as EventEmitter<any>)
-                .pipe(takeUntil(this.subscription))
-                .subscribe((event) => {
-                    const handler = userOutputs[output.templateName];
-                    if (handler) { // in case the output has not been provided at all
-                        handler(event);
-                    }
-                });
+  ngOnDestroy(): void {
+    this.destroyComponent();
+    this.subscription.next();
+    this.subscription.complete();
+  }
+
+  private makeComponentChanges(
+    inputsChange: SimpleChange,
+    firstChange: boolean
+  ): Record<string, SimpleChange> {
+    const previuosInputs = inputsChange?.previousValue ?? {};
+    const currentInputs = inputsChange?.currentValue ?? {};
+    return Object.keys(currentInputs).reduce((acc, inputName) => {
+      const currentInputValue = currentInputs[inputName];
+      const previuosInputValue = previuosInputs[inputName];
+      if (currentInputValue !== previuosInputValue) {
+        acc[inputName] = new SimpleChange(
+          firstChange ? undefined : previuosInputValue,
+          currentInputValue,
+          firstChange
+        );
+      }
+      return acc;
+    }, {} as Record<string, SimpleChange>);
+  }
+
+  private createComponent() {
+    this.componentFactory =
+      this.componentFactoryResolver.resolveComponentFactory(this.component);
+    this.componentRef = this.viewContainerRef.createComponent<any>(
+      this.componentFactory,
+      0,
+      this.injector
+    );
+  }
+
+  private bindOutputs(
+    componentOutputs: ComponentInputs,
+    userOutputs: UserInputs,
+    componentInstance: any
+  ) {
+    componentOutputs.forEach((output) => {
+      (componentInstance[output.propName] as EventEmitter<any>)
+        .pipe(takeUntil(this.subscription))
+        .subscribe((event) => {
+          const handler = userOutputs[output.templateName];
+          if (handler) {
+            // in case the output has not been provided at all
+            handler(event);
+          }
         });
-    }
+    });
+  }
 
-    private bindInputs(componentInputs: ComponentInputs, userInputs: UserInputs, componentInstance: any) {
-        componentInputs.forEach((input) => {
-            const inputValue = userInputs[input.templateName];
-            componentInstance[input.propName] = inputValue;
-        });
-    }
+  private bindInputs(
+    componentInputs: ComponentInputs,
+    userInputs: UserInputs,
+    componentInstance: any
+  ) {
+    componentInputs.forEach((input) => {
+      const inputValue = userInputs[input.templateName];
+      componentInstance[input.propName] = inputValue;
+    });
+  }
 
-    private validateOutputs(componentOutputs: ComponentOutputs, userOutputs: UserOutputs, componentInstance: any) {
-        componentOutputs.forEach((output) => {
-            if (!(componentInstance[output.propName] instanceof EventEmitter)) {
-                throw new Error(`Output ${ output.propName } must be a typeof EventEmitter`);
-            }
-        });
+  private validateOutputs(
+    componentOutputs: ComponentOutputs,
+    userOutputs: UserOutputs,
+    componentInstance: any
+  ) {
+    componentOutputs.forEach((output) => {
+      if (!(componentInstance[output.propName] instanceof EventEmitter)) {
+        throw new Error(
+          `Output ${output.propName} must be a typeof EventEmitter`
+        );
+      }
+    });
 
-        const outputsKeys = Object.keys(userOutputs);
-        outputsKeys.forEach(key => {
-            const componentHaveThatOutput = componentOutputs.some(output => output.templateName === key);
-            if (!componentHaveThatOutput) {
-                throw new Error(`Output ${ key } is not ${ this.component.name } output.`);
-            }
-            if (!(userOutputs[key] instanceof Function)) {
-                throw new Error(`Output ${ key } must be a function`);
-            }
-        });
-    }
+    const outputsKeys = Object.keys(userOutputs);
+    outputsKeys.forEach((key) => {
+      const componentHaveThatOutput = componentOutputs.some(
+        (output) => output.templateName === key
+      );
+      if (!componentHaveThatOutput) {
+        throw new Error(`Output ${key} is not ${this.component.name} output.`);
+      }
+      if (!(userOutputs[key] instanceof Function)) {
+        throw new Error(`Output ${key} must be a function`);
+      }
+    });
+  }
 
-    private validateInputs(componentInputs: ComponentInputs, userInputs: UserInputs) {
-        const userInputsKeys = Object.keys(userInputs);
-        userInputsKeys.forEach(userInputKey => {
-            const componentHaveThatInput = componentInputs.some(componentInput => componentInput.templateName === userInputKey);
-            if (!componentHaveThatInput) {
-                throw new Error(`Input ${ userInputKey } is not ${ this.component.name } input.`);
-            }
-        });
-    }
+  private validateInputs(
+    componentInputs: ComponentInputs,
+    userInputs: UserInputs
+  ) {
+    const userInputsKeys = Object.keys(userInputs);
+    userInputsKeys.forEach((userInputKey) => {
+      const componentHaveThatInput = componentInputs.some(
+        (componentInput) => componentInput.templateName === userInputKey
+      );
+      if (!componentHaveThatInput) {
+        throw new Error(
+          `Input ${userInputKey} is not ${this.component.name} input.`
+        );
+      }
+    });
+  }
 
-    private destroyComponent() {
-        this.componentRef?.destroy();
-        this.viewContainerRef.clear();
-    }
-
+  private destroyComponent() {
+    this.componentRef?.destroy();
+    this.viewContainerRef.clear();
+  }
 }
 
-function assertNotNullOrUndefined<T>(value: T): asserts value is NonNullable<T> {
-    if (value === null || value === undefined) {
-        throw new Error(`cannot be undefined or null`);
-    }
+function assertNotNullOrUndefined<T>(
+  value: T
+): asserts value is NonNullable<T> {
+  if (value === null || value === undefined) {
+    throw new Error(`cannot be undefined or null`);
+  }
 }

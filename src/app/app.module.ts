@@ -4,17 +4,17 @@ import { BrowserModule } from '@angular/platform-browser';
 import { AppComponent } from './app.component';
 import { ColorBoxComponent } from './color-box.component';
 import { DynamicComponentDirective } from './dynamic-component.directive';
+import { DynamicComponentV14Directive } from './dynamic-component.directive.v13';
 
 @NgModule({
   declarations: [
     AppComponent,
     ColorBoxComponent,
-    DynamicComponentDirective
+    DynamicComponentDirective,
+    DynamicComponentV14Directive,
   ],
-  imports: [
-    BrowserModule
-  ],
+  imports: [BrowserModule],
   providers: [],
-  bootstrap: [AppComponent]
+  bootstrap: [AppComponent],
 })
-export class AppModule { }
+export class AppModule {}
